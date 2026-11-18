@@ -33,3 +33,6 @@ __queuestorage__/
 
 # Temporary files
 *.tmp
+
+# Azurite local configuration
+/AzuriteConfig
