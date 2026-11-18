@@ -1,0 +1,35 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets and Azure configuration
+.env
+.env.*
+!.env.example
+local.settings.json
+
+# Local databases
+*.db
+*.sqlite3
+
+# Azurite local storage
+.azurite/
+__azurite_db_*
+__blobstorage__/
+__queuestorage__/
+
+# Testing and logs
+.pytest_cache/
+*.log
+.coverage
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
