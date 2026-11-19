@@ -1,0 +1,115 @@
+\section{Application Implementation}
+
+\subsection{Initial Flask Application}
+
+We started the implementation by creating a minimal
+Flask application. The purpose of this first step was
+to verify that our Python environment could run a web
+server and return an HTML page to the browser.
+
+The application currently contains a single route
+corresponding to the homepage. When this route is
+accessed, Flask executes the associated Python function
+and renders the HTML template located in the
+\texttt{templates} directory.
+
+\lstinputlisting[
+    language=Python,
+    caption={Initial Flask application},
+    label={lst:flask}
+]{../../app.py}
+
+\subsection{Client-Server Architecture}
+
+The application follows a client-server architecture.
+The browser acts as the client and communicates with
+the Flask server through HTTP requests.
+
+Flask receives these requests, executes the appropriate
+Python functions and returns a response to the browser.
+At this stage, the response is generated from a simple
+HTML template. Database operations will be introduced
+during the subsequent development phase.
+
+\begin{figure}[htbp]
+    \centering
+
+    \begin{tikzpicture}[
+        node distance=1.7cm,
+        component/.style={
+            draw=primary,
+            rounded corners=3pt,
+            fill=primary!10,
+            minimum width=6cm,
+            minimum height=1.2cm,
+            align=center
+        },
+        arrow/.style={
+            -{Stealth},
+            thick,
+            draw=secondary
+        }
+    ]
+
+    \node[component] (browser)
+        {Web Browser\\HTTP Client};
+
+    \node[component,below=of browser] (flask)
+        {Flask Application\\Python Backend};
+
+    \node[component,below=of flask] (template)
+        {HTML Template\\templates/index.html};
+
+    \draw[arrow]
+        ([xshift=-0.8cm]browser.south)
+        -- node[left,font=\small]{HTTP Request}
+        ([xshift=-0.8cm]flask.north);
+
+    \draw[arrow]
+        ([xshift=0.8cm]flask.north)
+        -- node[right,font=\small]{HTTP Response}
+        ([xshift=0.8cm]browser.south);
+
+    \draw[arrow]
+        (flask.south)
+        -- node[right,font=\small]{Render Template}
+        (template.north);
+
+    \end{tikzpicture}
+
+    \caption{Initial client-server architecture}
+    \label{fig:client-server}
+\end{figure}
+
+\subsection{Initial Application Testing}
+
+Once the application was running locally, we used
+the curl command-line tool to verify that the server
+was responding correctly.
+
+The test was performed by sending an HTTP HEAD request
+to the local application address.
+
+\begin{lstlisting}[
+    language={},
+    numbers=none,
+    caption={Local web server verification}
+]
+curl -I http://127.0.0.1:5000/
+
+HTTP/1.1 200 OK
+Server: Werkzeug/3.1.9 Python/3.12.3
+Content-Type: text/html; charset=utf-8
+Content-Length: 384
+Connection: close
+\end{lstlisting}
+
+The HTTP 200 response confirms that the requested
+page was accessible and that the Flask server was
+running correctly.
+
+Although the application does not yet contain any
+inventory management features, this first test validates
+the basic communication between the browser and the
+Python backend. It provides a starting point for the
+implementation of the remaining functionalities.

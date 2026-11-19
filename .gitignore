@@ -36,3 +36,17 @@ __queuestorage__/
 
 # Azurite local configuration
 /AzuriteConfig
+
+# LaTeX generated files
+/docs/rapport/build/
+/docs/rapport/main.pdf
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.lol
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out

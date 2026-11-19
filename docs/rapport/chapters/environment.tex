@@ -1,0 +1,74 @@
+\section{Development Environment}
+
+\subsection{Preparation of the Working Environment}
+
+Before starting the implementation, we prepared a local
+development environment on Ubuntu. This allowed us to
+install and test the necessary tools without consuming
+our Azure credits during the initial development phase.
+
+Python was selected as the main programming language,
+with Flask as the web framework. Flask provides the
+essential features required to build our application
+while keeping its structure relatively simple.
+
+We also configured the Azure CLI and Azure Functions
+Core Tools to support the later integration and
+deployment of cloud services.
+
+\subsection{Development Tools}
+
+Table~\ref{tab:environment} presents the main tools
+available in our local development environment.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Development environment configuration}
+    \label{tab:environment}
+
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Technology} &
+        \textbf{Version} &
+        \textbf{Purpose} \\
+        \midrule
+        Ubuntu & 24.04.5 LTS & Operating system \\
+        Python & 3.12.3 & Programming language \\
+        Flask & 3.1.3 & Web framework \\
+        Werkzeug & 3.1.9 & WSGI utilities \\
+        Git & 2.43.0 & Version control \\
+        VS Code & 1.146.0 & Development editor \\
+        Azure CLI & 2.93.0 & Cloud management \\
+        Functions Core Tools & 4.16.1 & Serverless development \\
+        LaTeXmk & 4.83 & Report compilation \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Python Virtual Environment}
+
+A Python virtual environment was created for the project
+to keep its dependencies separate from the packages
+installed on the operating system.
+
+After installing Flask, we recorded the installed
+dependencies in a \texttt{requirements.txt} file.
+This will allow both team members to reproduce the
+same Python environment and will also be useful
+when deploying the application to Azure.
+
+\subsection{Version Control and Collaboration}
+
+The project is managed using Git, with a remote repository
+hosted on GitHub. This provides a common workspace for
+the development team and allows us to track modifications
+throughout the project.
+
+A \texttt{.gitignore} file was configured to exclude
+the virtual environment, sensitive configuration files
+and locally generated files that do not need to be
+included in the repository.
+
+The application and the LaTeX report are maintained
+within the same project directory so that documentation
+can progress alongside implementation.
