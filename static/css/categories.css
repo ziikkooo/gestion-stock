@@ -1,0 +1,104 @@
+/* Category management and multi-category product forms */
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+.admin-tabs a {
+    color: #475569;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 14px;
+    text-decoration: none;
+}
+.admin-tabs a.active {
+    color: #1e40af;
+    border-color: #2563eb;
+    background: #dbeafe;
+    font-weight: bold;
+}
+.admin-tabs a:hover { border-color: #2563eb; }
+.category-create-panel { margin-bottom: 24px; }
+.category-create-panel .filter-form { margin-bottom: 0; }
+.category-note { margin-top: 18px; }
+.category-tags, .category-remove-bar, .selected-category-tags {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+    white-space: normal;
+}
+.category-tags { min-width: 150px; max-width: 300px; }
+.category-tag, .selected-category-name, .remove-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: #eef2f7;
+    color: #475569;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.selected-category-name, .remove-category { background: #dbeafe; color: #1e40af; }
+.category-remove-bar { margin-bottom: 8px; }
+.category-remove-bar[hidden] { display: none; }
+.remove-category { border: 1px solid #bfdbfe; cursor: pointer; font-family: inherit; text-align: left; }
+.remove-category:hover { background: #bfdbfe; }
+.remove-category:focus-visible { outline: 2px solid #2563eb; }
+.remove-category span { font-size: 15px; }
+.category-picker { min-width: 0; }
+.category-picker details { border: 1px solid #cbd5e1; border-radius: 6px; background: white; }
+.category-picker summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    min-height: 40px;
+    cursor: pointer;
+    font-size: 14px;
+    list-style: none;
+}
+.category-picker summary::-webkit-details-marker { display: none; }
+.category-picker summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.category-placeholder { color: #64748b; }
+.picker-arrow { width: 8px; height: 8px; border: solid #64748b; border-width: 0 2px 2px 0; transform: rotate(45deg); margin: 0 3px 4px 0; flex-shrink: 0; }
+.category-picker details[open] .picker-arrow { transform: rotate(225deg); margin-bottom: 0; }
+.category-options { border-top: 1px solid #e2e8f0; padding: 8px; max-height: 230px; overflow-y: auto; }
+.category-picker .category-option {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: normal;
+    color: #1e293b;
+    overflow-wrap: anywhere;
+}
+.category-option:hover { background: #f1f5f9; }
+.category-picker .category-option input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; flex: 0 0 16px; accent-color: #2563eb; }
+.field-label { font-size: 14px; font-weight: bold; color: #475569; }
+.filter-group .field-label { font-size: 13px; }
+.category-filter-form { align-items: flex-start; }
+.category-filter-form .btn, .category-filter-form .btn-secondary { margin-top: 23px; }
+.category-filter-group { flex: 1.5; min-width: 200px; }
+.product-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.product-form input[readonly] { background: #f1f5f9; color: #64748b; }
+.category-management-link { color: #2563eb; text-decoration: none; font-size: 13px; }
+.category-management-link:hover { text-decoration: underline; }
+.table-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.action-btn { height: auto; min-height: 32px; padding: 6px 10px; font-size: 12px; font-family: inherit; cursor: pointer; }
+.delete-btn { color: #b91c1c; }
+.delete-btn:disabled { opacity: .45; cursor: not-allowed; }
+@media(max-width: 600px) {
+    .product-form-grid { grid-template-columns: 1fr; }
+    .category-filter-form .btn, .category-filter-form .btn-secondary { margin-top: 0; }
+}
