@@ -1,0 +1,42 @@
+{% macro category_tags(names) %}
+<div class="category-tags">
+    {% for name in names %}<span class="category-tag">{{ name }}</span>{% endfor %}
+</div>
+{% endmacro %}
+
+{% macro category_picker(categories, selected, field_name, placeholder, picker_id) %}
+<div class="category-picker" data-category-picker>
+<div class="category-remove-bar" data-remove-bar hidden></div>
+<details>
+    <summary>
+        <span class="selected-category-tags" data-selected-tags>
+            {% for c in categories if c.id in selected %}
+                <span class="selected-category-name">{{ c.name }}</span>
+            {% else %}
+                <span class="category-placeholder">{{ placeholder }}</span>
+            {% endfor %}
+        </span>
+        <span class="picker-arrow" aria-hidden="true"></span>
+    </summary>
+    <div class="category-options" id="{{ picker_id }}">
+        {% for c in categories %}
+        <label class="category-option">
+            <input type="checkbox" name="{{ field_name }}" value="{{ c.id }}"
+                   data-category-name="{{ c.name }}" {% if c.id in selected %}checked{% endif %}>
+            <span>{{ c.name }}</span>
+        </label>
+        {% else %}
+        <p class="form-note">No categories registered.</p>
+        {% endfor %}
+    </div>
+</details>
+<span data-placeholder hidden>{{ placeholder }}</span>
+</div>
+{% endmacro %}
+
+{% macro admin_tabs(active) %}
+<nav class="admin-tabs" aria-label="Administration modules">
+    <a href="{{ url_for('admin') }}" {% if active == 'products' %}class="active" aria-current="page"{% endif %}>Manage Products</a>
+    <a href="{{ url_for('manage_categories') }}" {% if active == 'categories' %}class="active" aria-current="page"{% endif %}>Manage Categories</a>
+</nav>
+{% endmacro %}

@@ -1,209 +1,119 @@
-from flask import Flask, render_template, request, redirect, url_for
-from itertools import count
-import math
+from flask import Flask, abort, redirect, render_template, request, url_for
+from services.catalogue import Catalogue, CatalogueError
 
 app = Flask(__name__)
+catalogue = Catalogue()
 
-# Temporary product data
-products = [
-    {
-        "id": "P001",
-        "name": "Wireless Mouse",
-        "category": "Electronics",
-        "quantity": 45,
-        "min_stock": 10,
-        "price": 129.99
-    },
-    {
-        "id": "P002",
-        "name": "USB Cable",
-        "category": "Accessories",
-        "quantity": 8,
-        "min_stock": 10,
-        "price": 39.99
-    },
-    {
-        "id": "P003",
-        "name": "Notebook",
-        "category": "Stationery",
-        "quantity": 120,
-        "min_stock": 20,
-        "price": 24.99
-    },
-    {
-        "id": "P004",
-        "name": "Keyboard",
-        "category": "Electronics",
-        "quantity": 0,
-        "min_stock": 5,
-        "price": 199.99
-    },
-    {
-        "id": "P005",
-        "name": "Headphones",
-        "category": "Electronics",
-        "quantity": 4,
-        "min_stock": 10,
-        "price": 249.99
-    },
-    {
-        "id": "P006",
-        "name": "Desk Lamp",
-        "category": "Office Supplies",
-        "quantity": 26,
-        "min_stock": 5,
-        "price": 149.99
-    }
-]
-# Automatic product identifier counter
-product_counter = count(
-    max(
-        (int(product["id"][1:]) for product in products),
-        default=0
-    ) + 1
-)
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/inventory")
 def inventory():
-
-    # Retrieve search and filter parameters
-    search = request.args.get("search", "").strip().lower()
-    category = request.args.get("category", "")
+    search = request.args.get("search", "").strip()
+    selected = list(dict.fromkeys(request.args.getlist("category")))
+    mode = request.args.get("match", "any")
+    if mode not in {"any", "all"}:
+        mode = "any"
     status = request.args.get("status", "")
+    if status not in {"", "available", "low", "out"}:
+        status = ""
+    filtered = catalogue.filter_products(search, selected, mode, status)
+    return render_template("inventory.html", products=catalogue.product_rows(filtered),
+                           categories=catalogue.sorted_categories(), search=search,
+                           selected_categories=selected, match_mode=mode,
+                           selected_status=status, **catalogue.statistics())
 
-    # Retrieve all existing categories
-    categories = sorted({
-        product["category"] for product in products
-    })
-
-    # Calculate global inventory statistics
-    total_products = len(products)
-
-    low_stock = sum(
-        1 for product in products
-        if 0 < product["quantity"] <= product["min_stock"]
-    )
-
-    out_of_stock = sum(
-        1 for product in products
-        if product["quantity"] == 0
-    )
-
-    # Apply search and filters
-    filtered_products = []
-
-    for product in products:
-
-        if search:
-            if (
-                search not in product["name"].lower()
-                and search not in product["id"].lower()
-            ):
-                continue
-
-        if category and product["category"] != category:
-            continue
-
-        if status == "available":
-            if product["quantity"] <= product["min_stock"]:
-                continue
-
-        elif status == "low":
-            if not 0 < product["quantity"] <= product["min_stock"]:
-                continue
-
-        elif status == "out":
-            if product["quantity"] != 0:
-                continue
-
-        filtered_products.append(product)
-
-    return render_template(
-        "inventory.html",
-        products=filtered_products,
-        total_products=total_products,
-        low_stock=low_stock,
-        out_of_stock=out_of_stock,
-        categories=categories,
-        search=search,
-        selected_category=category,
-        selected_status=status
-    )
 
 @app.route("/admin")
 def admin():
-    return render_template(
-        "admin.html",
-        products=products
-    )
+    return render_template("admin.html", products=catalogue.product_rows())
+
+
+def render_product_form(template, product=None, error=None, status=200):
+    if request.method == "POST":
+        values = {"name": request.form.get("name", ""),
+                  "category_ids": request.form.getlist("category_ids"),
+                  "quantity": product["quantity"] if product else request.form.get("quantity", ""),
+                  "min_stock": request.form.get("min_stock", ""),
+                  "price": request.form.get("price", "")}
+    else:
+        values = product or {"name": "", "category_ids": [], "quantity": 0, "min_stock": 0, "price": ""}
+    return render_template(template, product=product, values=values,
+                           categories=catalogue.sorted_categories(), error=error), status
+
 
 @app.route("/admin/add", methods=["GET", "POST"])
 def add_product():
-
     if request.method == "POST":
-
-        # Retrieve form data
-        name = request.form.get("name", "").strip()
-        category = request.form.get("category", "").strip()
-
-        # Validate text fields
-        if not name or not category:
-            return render_template(
-                "add_product.html",
-                error="Product name and category are required."
-            ), 400
-
-        if len(name) > 100 or len(category) > 50:
-            return render_template(
-                "add_product.html",
-                error="Product name or category is too long."
-            ), 400
-
-        # Convert and validate numerical values
         try:
-            quantity = int(request.form.get("quantity", ""))
-            min_stock = int(request.form.get("min_stock", ""))
-            price = float(request.form.get("price", ""))
+            catalogue.add_product(request.form.get("name", ""), request.form.getlist("category_ids"),
+                                  request.form.get("quantity", ""), request.form.get("min_stock", ""),
+                                  request.form.get("price", ""))
+        except CatalogueError as error:
+            return render_product_form("add_product.html", error=str(error), status=400)
+        return redirect(url_for("admin"), code=303)
+    return render_product_form("add_product.html")
 
-        except ValueError:
-            return render_template(
-                "add_product.html",
-                error="Please enter valid numerical values."
-            ), 400
 
-        if (
-            quantity < 0
-            or min_stock < 0
-            or price < 0
-            or not math.isfinite(price)
-        ):
-            return render_template(
-                "add_product.html",
-                error="Stock quantities and price must be valid non-negative values."
-            ), 400
+@app.route("/admin/edit/<product_id>", methods=["GET", "POST"])
+def edit_product(product_id):
+    product = catalogue.get_product(product_id)
+    if product is None:
+        abort(404)
+    if request.method == "POST":
+        try:
+            catalogue.edit_product(product_id, request.form.get("name", ""), request.form.getlist("category_ids"),
+                                   request.form.get("min_stock", ""), request.form.get("price", ""))
+        except CatalogueError as error:
+            return render_product_form("edit_product.html", product, str(error), 400)
+        return redirect(url_for("admin"), code=303)
+    return render_product_form("edit_product.html", product)
 
-        # Generate product ID
-        product_id = f"P{next(product_counter):03d}"
 
-        # Create the product
-        new_product = {
-            "id": product_id,
-            "name": name,
-            "category": category,
-            "quantity": quantity,
-            "min_stock": min_stock,
-            "price": round(price, 2)
-        }
+def render_categories(edit=None, name="", error=None, status=200):
+    return render_template("categories.html", categories=catalogue.category_rows(),
+                           classified_count=sum(bool(p["category_ids"]) for p in catalogue.products),
+                           editing=edit, name=name, error=error), status
 
-        # Add to the temporary inventory
-        products.append(new_product)
 
-        # Return to administration
-        return redirect(url_for("admin"))
+@app.route("/admin/categories", methods=["GET", "POST"])
+def manage_categories():
+    if request.method == "POST":
+        name = request.form.get("name", "")
+        try:
+            catalogue.add_category(name)
+        except CatalogueError as error:
+            return render_categories(name=name, error=str(error), status=400)
+        return redirect(url_for("manage_categories"), code=303)
+    edit_id = request.args.get("edit")
+    edit = catalogue.get_category(edit_id) if edit_id else None
+    if edit_id and edit is None:
+        abort(404)
+    return render_categories(edit=edit, name=edit["name"] if edit else "")
 
-    return render_template("add_product.html")
 
+@app.post("/admin/categories/<category_id>/rename")
+def rename_category(category_id):
+    category = catalogue.get_category(category_id)
+    if category is None:
+        abort(404)
+    name = request.form.get("name", "")
+    try:
+        catalogue.rename_category(category_id, name)
+    except CatalogueError as error:
+        return render_categories(edit=category, name=name, error=str(error), status=400)
+    return redirect(url_for("manage_categories"), code=303)
+
+
+@app.post("/admin/categories/<category_id>/delete")
+def delete_category(category_id):
+    if catalogue.get_category(category_id) is None:
+        abort(404)
+    try:
+        catalogue.delete_category(category_id)
+    except CatalogueError as error:
+        return render_categories(error=str(error), status=409)
+    return redirect(url_for("manage_categories"), code=303)

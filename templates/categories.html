@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_category_controls.html" import admin_tabs %}
+{% block title %}Categories | Stock Manager{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<p class="subtitle">Manage the shared categories used throughout the inventory.</p>
+{{ admin_tabs('categories') }}
+<div class="card-grid inventory-summary">
+    <div class="card"><p>Total Categories</p><h2 class="stat-number">{{ categories|length }}</h2></div>
+    <div class="card"><p>Classified Products</p><h2 class="stat-number">{{ classified_count }}</h2></div>
+</div>
+<div class="table-container category-create-panel">
+    <h2>{{ 'Rename Category' if editing else 'Create Category' }}</h2>
+    {% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
+    <form method="POST" class="filter-form" action="{{ url_for('rename_category', category_id=editing.id) if editing else url_for('manage_categories') }}">
+        <div class="filter-group">
+            <label for="category-name">Category Name</label>
+            <input id="category-name" name="name" value="{{ name }}" maxlength="50" placeholder="e.g. Cleaning Supplies" required>
+        </div>
+        <button type="submit" class="btn">{{ 'Save Name' if editing else '+ Add Category' }}</button>
+        {% if editing %}<a href="{{ url_for('manage_categories') }}" class="btn-secondary">Cancel</a>{% endif %}
+    </form>
+</div>
+<div class="table-container">
+    <h2>Registered Categories</h2>
+    <table class="inventory-table">
+        <thead><tr><th>ID</th><th>Category Name</th><th>Products</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for category in categories %}
+        <tr>
+            <td>{{ category.id }}</td><td>{{ category.name }}</td><td>{{ category.product_count }}</td>
+            <td><div class="table-actions">
+                <a class="btn-secondary action-btn" href="{{ url_for('manage_categories', edit=category.id) }}">Rename</a>
+                <form method="POST" action="{{ url_for('delete_category', category_id=category.id) }}" data-confirm="Delete this category?">
+                    <button class="btn-secondary action-btn delete-btn" type="submit" {% if category.product_count %}disabled title="Category is in use"{% endif %}>Delete</button>
+                </form>
+            </div></td>
+        </tr>
+        {% else %}<tr><td colspan="4" class="empty-state">No categories registered.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    <p class="form-note category-note">Categories assigned to products cannot be deleted. Reassign the affected products first.</p>
+</div>
+{% endblock %}
