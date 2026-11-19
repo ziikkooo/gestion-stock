@@ -1,17 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Stock Management</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-    <h1>Warehouse Stock Management System</h1>
+{% block title %}Home | Stock Manager{% endblock %}
 
-    <p>Welcome to our cloud-based inventory management application.</p>
+{% block content %}
 
-    <p>Version 1.0 - Local development</p>
+<h1>Welcome to Stock Manager</h1>
 
-</body>
-</html>
+<p class="subtitle">
+    Monitor and manage your warehouse inventory
+    from one place.
+</p>
+
+<div class="card-grid">
+
+    <div class="card">
+        <h2>Inventory</h2>
+
+        <p>Browse available products and check stock levels.</p>
+
+        <a href="/inventory" class="btn">View inventory</a>
+    </div>
+
+    <div class="card">
+        <h2>Administration</h2>
+
+        <p>Manage products and record stock movements.</p>
+
+        <span class="coming-soon">Coming soon</span>
+    </div>
+
+    <div class="card">
+        <h2>Dashboard</h2>
+
+        <p>Monitor inventory statistics and stock activity.</p>
+
+        <span class="coming-soon">Coming soon</span>
+    </div>
+
+</div>
+
+{% endblock %}

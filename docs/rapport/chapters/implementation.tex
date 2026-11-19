@@ -13,11 +13,17 @@ accessed, Flask executes the associated Python function
 and renders the HTML template located in the
 \texttt{templates} directory.
 
-\lstinputlisting[
-    language=Python,
+\begin{lstlisting}[language=Python,
     caption={Initial Flask application},
-    label={lst:flask}
-]{../../app.py}
+    label={lst:initial-flask}]
+from flask import Flask, render_template
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+\end{lstlisting}
 
 \subsection{Client-Server Architecture}
 
@@ -113,3 +119,328 @@ inventory management features, this first test validates
 the basic communication between the browser and the
 Python backend. It provides a starting point for the
 implementation of the remaining functionalities.
+
+% ==================================================
+% Web Application Development
+% ==================================================
+
+\subsection{Development of the Web Interface}
+
+Following the initial configuration of the Flask application,
+the next step consisted of developing a structured web interface
+for the warehouse stock management system.
+
+The interface was designed using HTML and CSS, while Jinja2
+was used to connect the frontend to the Flask backend.
+A common layout was implemented to maintain consistency
+between the different pages of the application.
+
+The main interface contains a navigation sidebar, a header,
+and a content area. The homepage provides access to the
+inventory module and introduces the administration and
+dashboard modules planned for later development.
+
+\subsubsection{Template Inheritance}
+
+Jinja2 template inheritance was introduced to avoid repeating
+the same HTML structure across multiple pages. A base template
+defines the common elements, while individual templates
+contain the content specific to each page.
+
+This approach improves code maintainability and simplifies
+future modifications to the application interface.
+
+\begin{figure}[htbp]
+    \centering
+
+    \begin{tikzpicture}[
+        component/.style={
+            rectangle,
+            draw=black,
+            fill=white,
+            minimum width=3.5cm,
+            minimum height=1.2cm,
+            align=center
+        },
+        connection/.style={
+            -{Stealth},
+            thick
+        }
+    ]
+
+        \node[component] (base)
+            {\texttt{base.html}\\Common layout};
+
+        \node[component, below left=1.5cm and 0.5cm of base]
+            (home)
+            {\texttt{index.html}\\Homepage};
+
+        \node[component, below right=1.5cm and 0.5cm of base]
+            (inventory)
+            {\texttt{inventory.html}\\Inventory};
+
+        \draw[connection] (home.north) -- (base.south);
+        \draw[connection] (inventory.north) -- (base.south);
+
+    \end{tikzpicture}
+
+    \caption{Jinja2 template inheritance structure}
+    \label{fig:template-inheritance}
+
+\end{figure}
+
+% ==================================================
+% Product Inventory
+% ==================================================
+
+\subsection{Product Inventory Module}
+
+The inventory module allows users to consult the products
+available in the warehouse and monitor their stock levels.
+
+During this development phase, six sample products were
+defined using a Python list of dictionaries. This temporary
+data source allows the functionality of the application
+to be tested independently of the cloud database.
+
+Azure Cosmos DB will replace this temporary data source
+during a later implementation phase.
+
+\subsubsection{Product Data Model}
+
+Each product contains six attributes describing its
+identification, classification, quantity, minimum stock
+threshold, and unit price.
+
+\begin{table}[htbp]
+    \centering
+
+    \begin{tabular}{lll}
+        \toprule
+
+        \textbf{Attribute} &
+        \textbf{Data type} &
+        \textbf{Description} \\
+
+        \midrule
+
+        id & String & Unique product identifier \\
+        name & String & Product name \\
+        category & String & Product classification \\
+        quantity & Integer & Current stock quantity \\
+        min\_stock & Integer & Minimum stock threshold \\
+        price & Float & Unit price in MAD \\
+
+        \bottomrule
+    \end{tabular}
+
+    \caption{Initial product data model}
+    \label{tab:product-model}
+
+\end{table}
+
+\subsubsection{Stock Status Management}
+
+The application determines the status of each product
+by comparing its current quantity with its minimum stock
+threshold.
+
+Three situations are considered:
+
+\begin{itemize}
+    \item \textbf{Available:} the quantity is greater
+    than the minimum stock threshold.
+
+    \item \textbf{Low stock:} the quantity is positive
+    but does not exceed the minimum stock threshold.
+
+    \item \textbf{Out of stock:} the quantity is zero.
+\end{itemize}
+
+These conditions will also serve as the basis for the
+automated stock notification mechanisms planned for the
+cloud integration phase.
+
+The inventory interface displays the total number of
+products, the number of low-stock products, and the number
+of out-of-stock products.
+
+% ==================================================
+% Search and Filtering
+% ==================================================
+
+\subsection{Search and Filtering Mechanism}
+
+To improve product accessibility, a search and filtering
+mechanism was implemented within the inventory module.
+
+Users can search for a product by its name or identifier.
+They can also filter the catalogue according to product
+category and stock status.
+
+The filtering operation is performed on the server side.
+The browser sends the selected parameters through an HTTP
+GET request. Flask retrieves these parameters, processes
+the product data, and returns the matching results through
+the Jinja2 template.
+
+Multiple filters can be combined within the same request.
+A reset option restores the complete product catalogue.
+
+\subsubsection{Client-Server Communication}
+
+Figure~\ref{fig:filtering-process} illustrates the
+communication process between the browser and the Flask
+backend during a filtering operation.
+
+\begin{figure}[htbp]
+    \centering
+
+    \begin{tikzpicture}[
+        node distance=1.3cm,
+        component/.style={
+            rectangle,
+            draw=black,
+            fill=white,
+            minimum width=6cm,
+            minimum height=1cm,
+            align=center
+        },
+        connection/.style={
+            -{Stealth},
+            thick
+        }
+    ]
+
+        \node[component] (browser)
+            {Web browser};
+
+        \node[component, below=of browser] (flask)
+            {Flask backend};
+
+        \node[component, below=of flask] (data)
+            {Product data filtering};
+
+        \node[component, below=of data] (jinja)
+            {Jinja2 template rendering};
+
+        \node[component, below=of jinja] (result)
+            {Filtered inventory displayed};
+
+        \draw[connection]
+            (browser) -- node[right, font=\small]
+            {HTTP GET request} (flask);
+
+        \draw[connection]
+            (flask) -- node[right, font=\small]
+            {Search parameters} (data);
+
+        \draw[connection]
+            (data) -- node[right, font=\small]
+            {Matching products} (jinja);
+
+        \draw[connection]
+            (jinja) -- node[right, font=\small]
+            {HTML response} (result);
+
+    \end{tikzpicture}
+
+    \caption{Server-side search and filtering process}
+    \label{fig:filtering-process}
+
+\end{figure}
+
+
+% ==================================================
+% Application Interface
+% ==================================================
+
+\subsection{Application Interface}
+
+The following figures illustrate the results of the
+local application development.
+
+\subsubsection{Homepage}
+
+Figure~\ref{fig:homepage} presents the main interface
+and its navigation structure.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/home.png}
+    \caption{Application homepage}
+    \label{fig:homepage}
+\end{figure}
+
+\subsubsection{Inventory Interface}
+
+Figure~\ref{fig:inventory-interface} shows the product
+catalogue and the stock level indicators based on the
+six sample products.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/inventory.png}
+    \caption{Product inventory interface}
+    \label{fig:inventory-interface}
+\end{figure}
+
+\subsubsection{Search and Filtering Results}
+
+The combination of the Electronics category and the
+Low stock status returns a single product, as shown
+in Figure~\ref{fig:filtered-inventory}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/inventory-filter.png}
+    \caption{Inventory results after applying combined filters}
+    \label{fig:filtered-inventory}
+\end{figure}
+
+% ==================================================
+% Functional Testing
+% ==================================================
+
+\subsection{Functional Testing}
+
+Nine functional tests were performed locally to
+validate the search and filtering mechanism.
+
+\begin{table}[htbp]
+    \centering
+    \small
+
+    \begin{tabular}{cllc}
+        \toprule
+
+        \textbf{No.} &
+        \textbf{Test scenario} &
+        \textbf{Expected result} &
+        \textbf{Result} \\
+
+        \midrule
+
+        1 & Search: mouse & 1 product & Passed \\
+        2 & Search: P003 & 1 product & Passed \\
+        3 & Electronics category & 3 products & Passed \\
+        4 & Available status & 3 products & Passed \\
+        5 & Low stock status & 2 products & Passed \\
+        6 & Out of stock status & 1 product & Passed \\
+        7 & Electronics and low stock & 1 product & Passed \\
+        8 & Unknown product search & No results & Passed \\
+        9 & Reset filters & 6 products & Passed \\
+
+        \bottomrule
+    \end{tabular}
+
+    \caption{Inventory module functional testing results}
+    \label{tab:inventory-tests}
+\end{table}
+
+All nine tests passed, validating the inventory
+module against the defined functional requirements.
+
+The application currently operates locally using
+temporary product data. Cloud integration will be
+addressed in the next development phases.

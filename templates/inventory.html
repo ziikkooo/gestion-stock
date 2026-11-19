@@ -1,0 +1,192 @@
+
+{% extends "base.html" %}
+
+{% block title %}Inventory | Stock Manager{% endblock %}
+
+{% block content %}
+
+<h1>Inventory</h1>
+
+<p class="subtitle">
+    Browse products and monitor warehouse stock levels.
+</p>
+
+<div class="card-grid inventory-summary">
+
+    <div class="card">
+        <p>Total Products</p>
+        <h2 class="stat-number">{{ total_products }}</h2>
+    </div>
+
+    <div class="card">
+        <p>Low Stock</p>
+        <h2 class="stat-number warning-text">{{ low_stock }}</h2>
+    </div>
+
+    <div class="card">
+        <p>Out of Stock</p>
+        <h2 class="stat-number danger-text">{{ out_of_stock }}</h2>
+    </div>
+
+</div>
+
+<div class="table-container">
+
+    <h2>Product Catalogue</h2>
+
+<form method="GET"
+      action="{{ url_for('inventory') }}"
+      class="filter-form">
+
+    <div class="filter-group">
+        <label for="search">Search</label>
+
+        <input type="search"
+               id="search"
+               name="search"
+               placeholder="Product name or ID..."
+               value="{{ search }}">
+    </div>
+
+    <div class="filter-group">
+        <label for="category">Category</label>
+
+        <select name="category" id="category">
+
+            <option value="">All categories</option>
+
+            {% for category in categories %}
+
+                <option value="{{ category }}"
+                    {% if selected_category == category %}
+                        selected
+                    {% endif %}>
+                    {{ category }}
+                </option>
+
+            {% endfor %}
+
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="status">Stock Status</label>
+
+        <select name="status" id="status">
+
+            <option value="">All statuses</option>
+
+            <option value="available"
+                {% if selected_status == "available" %}
+                    selected
+                {% endif %}>
+                Available
+            </option>
+
+            <option value="low"
+                {% if selected_status == "low" %}
+                    selected
+                {% endif %}>
+                Low stock
+            </option>
+
+            <option value="out"
+                {% if selected_status == "out" %}
+                    selected
+                {% endif %}>
+                Out of stock
+            </option>
+
+        </select>
+    </div>
+
+    <button type="submit" class="btn">
+        Apply filters
+    </button>
+
+    <a href="{{ url_for('inventory') }}"
+       class="btn-secondary">
+        Reset
+    </a>
+
+</form>
+
+<p class="result-count">
+    Showing {{ products|length }}
+    of {{ total_products }} products
+</p>
+
+
+    <table class="inventory-table">
+
+        <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Minimum Stock</th>
+                <th>Unit Price</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for product in products %}
+
+            <tr>
+                <td>{{ product.id }}</td>
+
+                <td>{{ product.name }}</td>
+
+                <td>{{ product.category }}</td>
+
+                <td>{{ product.quantity }}</td>
+
+                <td>{{ product.min_stock }}</td>
+
+                <td>{{ "%.2f"|format(product.price) }} MAD</td>
+
+                <td>
+                    {% if product.quantity == 0 %}
+
+                        <span class="status out-of-stock">
+                            Out of stock
+                        </span>
+
+                    {% elif product.quantity <= product.min_stock %}
+
+                        <span class="status low-stock">
+                            Low stock
+                        </span>
+
+                    {% else %}
+
+                        <span class="status available">
+                            Available
+                        </span>
+
+                    {% endif %}
+                </td>
+            </tr>
+
+            
+{% else %}
+
+    <tr>
+        <td colspan="7" class="empty-state">
+            No products match your search or filters.
+        </td>
+    </tr>
+
+{% endfor %}
+
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}
