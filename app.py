@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
+from itertools import count
+import math
 
 app = Flask(__name__)
 
@@ -53,6 +55,13 @@ products = [
         "price": 149.99
     }
 ]
+# Automatic product identifier counter
+product_counter = count(
+    max(
+        (int(product["id"][1:]) for product in products),
+        default=0
+    ) + 1
+)
 
 @app.route("/")
 def home():
@@ -124,3 +133,77 @@ def inventory():
         selected_category=category,
         selected_status=status
     )
+
+@app.route("/admin")
+def admin():
+    return render_template(
+        "admin.html",
+        products=products
+    )
+
+@app.route("/admin/add", methods=["GET", "POST"])
+def add_product():
+
+    if request.method == "POST":
+
+        # Retrieve form data
+        name = request.form.get("name", "").strip()
+        category = request.form.get("category", "").strip()
+
+        # Validate text fields
+        if not name or not category:
+            return render_template(
+                "add_product.html",
+                error="Product name and category are required."
+            ), 400
+
+        if len(name) > 100 or len(category) > 50:
+            return render_template(
+                "add_product.html",
+                error="Product name or category is too long."
+            ), 400
+
+        # Convert and validate numerical values
+        try:
+            quantity = int(request.form.get("quantity", ""))
+            min_stock = int(request.form.get("min_stock", ""))
+            price = float(request.form.get("price", ""))
+
+        except ValueError:
+            return render_template(
+                "add_product.html",
+                error="Please enter valid numerical values."
+            ), 400
+
+        if (
+            quantity < 0
+            or min_stock < 0
+            or price < 0
+            or not math.isfinite(price)
+        ):
+            return render_template(
+                "add_product.html",
+                error="Stock quantities and price must be valid non-negative values."
+            ), 400
+
+        # Generate product ID
+        product_id = f"P{next(product_counter):03d}"
+
+        # Create the product
+        new_product = {
+            "id": product_id,
+            "name": name,
+            "category": category,
+            "quantity": quantity,
+            "min_stock": min_stock,
+            "price": round(price, 2)
+        }
+
+        # Add to the temporary inventory
+        products.append(new_product)
+
+        # Return to administration
+        return redirect(url_for("admin"))
+
+    return render_template("add_product.html")
+

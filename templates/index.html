@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Home | Stock Manager{% endblock %}
@@ -7,31 +8,31 @@
 <h1>Welcome to Stock Manager</h1>
 
 <p class="subtitle">
-    Monitor and manage your warehouse inventory
-    from one place.
+    Monitor and manage your warehouse inventory from one place.
 </p>
 
 <div class="card-grid">
 
     <div class="card">
         <h2>Inventory</h2>
-
         <p>Browse available products and check stock levels.</p>
 
-        <a href="/inventory" class="btn">View inventory</a>
+        <a href="{{ url_for('inventory') }}" class="btn">
+            View inventory
+        </a>
     </div>
 
     <div class="card">
         <h2>Administration</h2>
-
         <p>Manage products and record stock movements.</p>
 
-        <span class="coming-soon">Coming soon</span>
+        <a href="{{ url_for('admin') }}" class="btn">
+            Admin panel
+        </a>
     </div>
 
     <div class="card">
         <h2>Dashboard</h2>
-
         <p>Monitor inventory statistics and stock activity.</p>
 
         <span class="coming-soon">Coming soon</span>

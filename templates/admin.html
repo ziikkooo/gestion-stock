@@ -1,0 +1,68 @@
+
+{% extends "base.html" %}
+
+{% block title %}Administration | Stock Manager{% endblock %}
+
+{% block content %}
+
+<h1>Administration</h1>
+
+<p class="subtitle">
+    Manage warehouse products and stock operations.
+</p>
+
+<div class="table-container">
+
+    <div class="section-header">
+
+    <h2>Manage Products</h2>
+
+    <a href="{{ url_for('add_product') }}" class="btn">
+        + Add Product
+    </a>
+
+</div>
+
+    <table class="inventory-table">
+
+        <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Minimum Stock</th>
+                <th>Unit Price</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for product in products %}
+
+            <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.category }}</td>
+                <td>{{ product.quantity }}</td>
+                <td>{{ product.min_stock }}</td>
+                <td>{{ "%.2f"|format(product.price) }} MAD</td>
+            </tr>
+
+            {% else %}
+
+            <tr>
+                <td colspan="6" class="empty-state">
+                    No products registered.
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

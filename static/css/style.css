@@ -336,3 +336,97 @@ h1 {
     padding: 40px;
 }
 
+/* Administration section header */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.section-header h2 {
+    margin-bottom: 0;
+}
+
+/* Product forms */
+
+.form-container {
+    max-width: 750px;
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 30px;
+}
+
+.form-container h2 {
+    font-size: 20px;
+    margin-bottom: 25px;
+}
+
+.product-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #475569;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #1e293b;
+    background-color: white;
+}
+
+.form-group input:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+}
+
+.form-note {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.form-actions button {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.error-message {
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 14px;
+}
+

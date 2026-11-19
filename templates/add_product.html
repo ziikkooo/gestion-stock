@@ -1,0 +1,107 @@
+
+{% extends "base.html" %}
+
+{% block title %}Add Product | Stock Manager{% endblock %}
+
+{% block content %}
+
+<h1>Add Product</h1>
+
+<p class="subtitle">
+    Register a new product in the warehouse inventory.
+</p>
+
+<div class="form-container">
+
+    <h2>Product Information</h2>
+
+    {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST"
+          action="{{ url_for('add_product') }}"
+          class="product-form">
+
+        <div class="form-group">
+            <label for="name">Product Name</label>
+
+            <input type="text"
+                   id="name"
+                   name="name"
+                   placeholder="e.g. USB Flash Drive"
+                   value="{{ request.form.get('name', '') }}"
+                   maxlength="100"
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label for="category">Category</label>
+
+            <input type="text"
+                   id="category"
+                   name="category"
+                   placeholder="e.g. Electronics"
+                   value="{{ request.form.get('category', '') }}"
+                   maxlength="50"
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label for="quantity">Initial Quantity</label>
+
+            <input type="number"
+                   id="quantity"
+                   name="quantity"
+                   min="0"
+                   value="{{ request.form.get('quantity', '0') }}"
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label for="min_stock">Minimum Stock</label>
+
+            <input type="number"
+                   id="min_stock"
+                   name="min_stock"
+                   min="0"
+                   value="{{ request.form.get('min_stock', '0') }}"
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label for="price">Unit Price (MAD)</label>
+
+            <input type="number"
+                   id="price"
+                   name="price"
+                   min="0"
+                   step="0.01"
+                   value="{{ request.form.get('price', '') }}"
+                   required>
+        </div>
+
+        <p class="form-note">
+            Product ID will be generated automatically.
+        </p>
+
+        <div class="form-actions">
+
+            <button type="submit" class="btn">
+                Add Product
+            </button>
+
+            <a href="{{ url_for('admin') }}"
+               class="btn-secondary">
+                Cancel
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
