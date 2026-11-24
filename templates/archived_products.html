@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_category_controls.html" import category_tags, admin_tabs %}
+{% block title %}Archived Products | Stock Manager{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<p class="subtitle">Archived products are hidden from active inventory but retain their IDs, category assignments and full stock history.</p>
+{{ admin_tabs('archived') }}
+{% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
+<div class="table-container">
+    <div class="section-header">
+        <h2>Archived Products ({{ products|length }})</h2>
+        <a class="btn-secondary action-btn" href="{{ url_for('admin') }}">Back to Active Products</a>
+    </div>
+    <div class="archive-explanation">Restoring a product returns it to active inventory with its original ID and zero stock. Its movement history is unchanged.</div>
+    <table class="inventory-table">
+        <thead><tr><th>Product ID</th><th>Product Name</th><th>Categories</th><th>Quantity</th><th>Unit Price</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for product in products %}
+        <tr>
+            <td>{{ product.id }}</td>
+            <td>{{ product.name }}</td>
+            <td>{{ category_tags(product.category_names) }}</td>
+            <td>{{ product.quantity }}</td>
+            <td>{{ '%.2f'|format(product.price) }} MAD</td>
+            <td><span class="archive-badge">Archived</span></td>
+            <td>
+                <div class="table-actions">
+                    <a class="btn-secondary action-btn" href="{{ url_for('stock_history', product_id=product.id) }}">History</a>
+                    <form method="POST" action="{{ url_for('restore_product', product_id=product.id) }}"
+                          data-confirm="Restore {{ product.id }} to active inventory?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-secondary action-btn restore-button">Restore</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+        {% else %}<tr><td colspan="7" class="empty-state">No archived products. Products with zero stock can be archived from Manage Products.</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

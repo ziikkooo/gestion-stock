@@ -5,10 +5,14 @@
 <h1>Administration</h1>
 <p class="subtitle">Manage warehouse products, categories and stock operations.</p>
 {{ admin_tabs('products') }}
+{% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
 <div class="table-container">
     <div class="section-header">
         <h2>Manage Products</h2>
-        <a href="{{ url_for('add_product') }}" class="btn">+ Add Product</a>
+        <div class="table-actions">
+            <a href="{{ url_for('archived_products') }}" class="btn-secondary action-btn">Archived Products</a>
+            <a href="{{ url_for('add_product') }}" class="btn">+ Add Product</a>
+        </div>
     </div>
     <table class="inventory-table">
         <thead><tr>
@@ -26,6 +30,15 @@
                 <a class="btn-secondary action-btn" href="{{ url_for('edit_product', product_id=product.id) }}">Edit</a>
                 <a class="btn-secondary action-btn" href="{{ url_for('stock_operation', product_id=product.id) }}">Move Stock</a>
                 <a class="btn-secondary action-btn" href="{{ url_for('stock_history', product_id=product.id) }}">History</a>
+                {% if product.quantity == 0 %}
+                <form method="POST" action="{{ url_for('archive_product', product_id=product.id) }}"
+                      data-confirm="Archive {{ product.id }}? The product will disappear from active inventory, but its history will be preserved.">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-secondary action-btn archive-button">Archive</button>
+                </form>
+                {% else %}
+                <span class="archive-unavailable" title="Reduce stock to zero before archiving">Archive requires 0 stock</span>
+                {% endif %}
             </div></td>
         </tr>
         {% else %}

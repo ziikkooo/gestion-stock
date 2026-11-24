@@ -161,6 +161,8 @@ class WarehouseService:
 
         def operation(state):
             product = _find_product(state, product_id)
+            if product.archived == archived:
+                raise ValidationError("Product is already archived." if archived else "Product is already active.")
             if archived and product.quantity != 0:
                 raise ValidationError("Only products with zero stock can be archived.")
             result = replace(product, archived=archived, updated_at=datetime.now(timezone.utc))

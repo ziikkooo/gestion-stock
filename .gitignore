@@ -1,47 +1,27 @@
-# Python virtual environment
 .venv/
 venv/
-
-# Python cache
 __pycache__/
 *.pyc
-*.pyo
-
-# Secrets and Azure configuration
+.pytest_cache/
 .env
 .env.*
 !.env.example
+/instance/
 local.settings.json
-
-# Local databases
 *.db
 *.sqlite3
-
-# Azurite local storage
+.venv*/
+.vscode/
+*.log
+.pytest_cache/
+.coverage
 .azurite/
 __azurite_db_*
 __blobstorage__/
 __queuestorage__/
-
-# Testing and logs
-.pytest_cache/
-*.log
-.coverage
-
-# VS Code
-.vscode/
-
-# Temporary files
-*.tmp
-
-# Azurite local configuration
-/AzuriteConfig
-
-# LaTeX generated files
 /docs/rapport/build/
 /docs/rapport/main.pdf
 *.aux
-*.log
 *.toc
 *.lof
 *.lot
@@ -50,4 +30,3 @@ __queuestorage__/
 *.fdb_latexmk
 *.synctex.gz
 *.out
-/instance/

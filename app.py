@@ -2,10 +2,11 @@ from flask import Flask, abort, redirect, render_template, request, url_for
 from flask_login import current_user
 from stock_manager.models import Actor
 from services.catalogue import Catalogue, CatalogueError
+from stock_manager.cosmos_repository import repository_from_environment
 from stock_manager.auth import configure_auth, admin_required
 
 app = Flask(__name__)
-catalogue = Catalogue()
+catalogue = Catalogue(repository=repository_from_environment())
 configure_auth(app)
 
 
@@ -190,3 +191,42 @@ def all_movements():
         abort(404)
     return render_template("movements.html", movements=catalogue.movement_rows(product_code or None),
                            products=catalogue.audit_product_rows(), selected_product=product_code)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.3: soft archiving / restoration; never delete products or movements.
+# ---------------------------------------------------------------------------
+
+def render_archive(error=None, status=200):
+    return render_template("archived_products.html",
+                           products=catalogue.archived_product_rows(), error=error), status
+
+
+@app.get("/admin/archived")
+@admin_required
+def archived_products():
+    return render_archive()
+
+
+@app.post("/admin/archive/<product_id>")
+@admin_required
+def archive_product(product_id):
+    if catalogue.get_product(product_id, include_archived=True) is None:
+        abort(404)
+    try:
+        catalogue.set_product_archived(product_id, archived=True)
+    except CatalogueError as error:
+        return render_template("admin.html", products=catalogue.product_rows(), error=str(error)), 409
+    return redirect(url_for("archived_products"), code=303)
+
+
+@app.post("/admin/archived/<product_id>/restore")
+@admin_required
+def restore_product(product_id):
+    if catalogue.get_product(product_id, include_archived=True) is None:
+        abort(404)
+    try:
+        catalogue.set_product_archived(product_id, archived=False)
+    except CatalogueError as error:
+        return render_archive(error=str(error), status=409)
+    return redirect(url_for("admin"), code=303)

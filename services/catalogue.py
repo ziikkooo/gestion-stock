@@ -2,12 +2,14 @@
 
 Public P###/C### codes remain stable for URLs/forms. UUIDs are internal.
 No product or category data lives in a separate mutable list anymore.
-The local repository is process-memory only until Cosmos DB integration.
+The repository may be in-memory or Azure Cosmos DB (for NoSQL).
 """
 from decimal import Decimal
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 import re
 
-from stock_manager.models import Actor, StockStatus, MovementType
+from stock_manager.models import Actor, Category, Product, Movement, StockStatus, MovementType
 from stock_manager.repository import InMemoryRepository
 from stock_manager.service import WarehouseService, ValidationError, NotFoundError
 
@@ -86,20 +88,38 @@ def _to_product(row, categories):
 
 
 class Catalogue:
-    def __init__(self):
-        self.repository = InMemoryRepository()
+    def __init__(self, repository=None):
+        self.repository = repository if repository is not None else InMemoryRepository()
         self.service = WarehouseService(self.repository)
-        for name in _INITIAL_CATEGORIES:
-            self.service.create_category(name)
-        for name, codes, qty, minimum, price in _INITIAL_PRODUCTS:
-            self.service.create_product(
-                name=name,
-                category_ids=self._category_ids(codes),
-                quantity=qty,
-                min_stock=minimum,
-                price=price,
-                actor=SEED_ACTOR,
-            )
+        snapshot = self.repository.read()
+        if not snapshot.categories and not snapshot.products and not snapshot.movements:
+            self.repository.transact(self._seed_if_empty)
+        elif not snapshot.categories:
+            raise RuntimeError("Warehouse data appears incomplete; refusing to overwrite it.")
+
+    @staticmethod
+    def _seed_if_empty(state):
+        """Seed the demo stock *once* in a single atomic repository transaction."""
+        if state.categories or state.products or state.movements:
+            return  # Another worker has already seeded this warehouse.
+        codes = {}
+        for i, name in enumerate(_INITIAL_CATEGORIES, start=1):
+            cat = Category(str(uuid4()), f"C{i:03d}", name, name.casefold())
+            codes[cat.code] = cat.id
+            state.categories[cat.id] = cat
+        state.next_category = len(_INITIAL_CATEGORIES) + 1
+        instant = datetime.now(timezone.utc)
+        for i, (name, category_codes, qty, minimum, price) in enumerate(_INITIAL_PRODUCTS, start=1):
+            moment = instant + timedelta(microseconds=i)
+            uid = str(uuid4())
+            product = Product(uid, f"P{i:03d}", name, tuple(codes[c] for c in category_codes),
+                              qty, minimum, int(Decimal(price) * 100), moment, moment)
+            state.products[uid] = product
+            movement = Movement(str(uuid4()), uid, product.code, product.name, MovementType.INITIAL,
+                                0, qty, qty, SEED_ACTOR.id, SEED_ACTOR.username,
+                                "Product creation", moment)
+            state.movements[movement.id] = movement
+        state.next_product = len(_INITIAL_PRODUCTS) + 1
 
     def _category_ids(self, codes):
         state = self.repository.read()
@@ -143,6 +163,21 @@ class Catalogue:
         state = self.repository.read()
         return [_to_product(p, state.categories) for p in sorted(
             state.products.values(), key=lambda p: int(p.code[1:]))]
+
+    def archived_product_rows(self):
+        """Return archive-only catalogue rows. History and category links are retained."""
+        return self.product_rows([p for p in self.audit_product_rows() if p["archived"]])
+
+    def set_product_archived(self, product_code, *, archived):
+        """Soft archive or restore by public code; no hard deletion or code reuse."""
+        uid = self._product_uuid(product_code)
+        if uid is None:
+            raise CatalogueError("Product not found.")
+        try:
+            result = self.service.set_archived(uid, archived)
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
+        return _to_product(result, self.repository.read().categories)
 
     def sorted_categories(self):
         return sorted(self.categories, key=lambda c: c["name"].casefold())

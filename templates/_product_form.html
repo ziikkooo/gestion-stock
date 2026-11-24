@@ -62,21 +62,14 @@
         </div>
 
         <div class="form-group">
-    <label for="price">Unit Price (MAD)</label>
-
-    <input
-        id="price"
-        name="price"
-        type="text"
-        inputmode="decimal"
-        pattern="[0-9]+(\.[0-9]{1,2})?"
-        maxlength="12"
-        placeholder="e.g. 129.99"
-        value="{{ values.price }}"
-        oninput="this.value = this.value.replace(/[^0-9.]/g, '')"
-        required
-    >
-</div>
+            <label for="price">Unit Price (MAD)</label>
+            <input id="price" name="price" type="text" inputmode="decimal"
+                   pattern="[0-9]+(\.[0-9]{1,2})?" maxlength="12"
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '')"
+                   title="Enter a non-negative price with at most two decimal places (e.g. 129.99)."
+                   placeholder="e.g. 129.99" value="{{ values.price }}" required>
+            <p class="form-note">Use a decimal point, with up to two digits after it.</p>
+        </div>
 
         {% if not product %}
             <p class="form-note">Product ID will be generated automatically.</p>
