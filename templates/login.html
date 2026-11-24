@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in | Stock Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body class="auth-page">
+    <main class="auth-card">
+        <div class="auth-brand">STOCK MANAGER</div>
+        <h1>Sign in</h1>
+        <p class="subtitle">Access your warehouse workspace.</p>
+        {% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
+        <form method="POST" action="{{ url_for('login') }}" class="product-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group"><label for="username">Username</label><input id="username" name="username" autocomplete="username" maxlength="100" required></div>
+            <div class="form-group"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required></div>
+            <button type="submit" class="btn auth-submit">Sign in</button>
+        </form>
+        <p class="auth-note">Warehouse Stock Management System</p>
+    </main>
+</body>
+</html>

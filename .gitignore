@@ -50,3 +50,4 @@ __queuestorage__/
 *.fdb_latexmk
 *.synctex.gz
 *.out
+/instance/

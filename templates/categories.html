@@ -13,6 +13,7 @@
     <h2>{{ 'Rename Category' if editing else 'Create Category' }}</h2>
     {% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
     <form method="POST" class="filter-form" action="{{ url_for('rename_category', category_id=editing.id) if editing else url_for('manage_categories') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="filter-group">
             <label for="category-name">Category Name</label>
             <input id="category-name" name="name" value="{{ name }}" maxlength="50" placeholder="e.g. Cleaning Supplies" required>
@@ -32,6 +33,7 @@
             <td><div class="table-actions">
                 <a class="btn-secondary action-btn" href="{{ url_for('manage_categories', edit=category.id) }}">Rename</a>
                 <form method="POST" action="{{ url_for('delete_category', category_id=category.id) }}" data-confirm="Delete this category?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn-secondary action-btn delete-btn" type="submit" {% if category.product_count %}disabled title="Category is in use"{% endif %}>Delete</button>
                 </form>
             </div></td>

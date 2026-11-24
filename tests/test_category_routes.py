@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 import app as application
 from services.catalogue import Catalogue
+from auth_helpers import TEST_CONFIG, csrf, sign_in
 
 
 class CategoryRouteTests(unittest.TestCase):
@@ -9,7 +10,14 @@ class CategoryRouteTests(unittest.TestCase):
         self.patcher = patch.object(application, 'catalogue', Catalogue())
         self.store = self.patcher.start()
         self.addCleanup(self.patcher.stop)
+        self.config_patcher = patch.dict(application.app.config, TEST_CONFIG)
+        self.config_patcher.start()
+        self.addCleanup(self.config_patcher.stop)
         self.client = application.app.test_client()
+        self.assertEqual(sign_in(self.client).status_code, 303)
+
+    def post(self, path, data=None):
+        return self.client.post(path, data={**(data or {}), "csrf_token": csrf(self.client)})
 
     def test_pages(self):
         for path in ('/', '/inventory', '/admin', '/admin/add', '/admin/categories', '/admin/edit/P001'):
@@ -22,29 +30,29 @@ class CategoryRouteTests(unittest.TestCase):
             self.assertIn(f'Showing {count} of 6 products'.encode(), response.data)
 
     def test_create_category_and_duplicate(self):
-        self.assertEqual(self.client.post('/admin/categories', data={'name': 'Cleaning'}).status_code, 303)
-        self.assertEqual(self.client.post('/admin/categories', data={'name': ' cleaning '}).status_code, 400)
+        self.assertEqual(self.post('/admin/categories', data={'name': 'Cleaning'}).status_code, 303)
+        self.assertEqual(self.post('/admin/categories', data={'name': ' cleaning '}).status_code, 400)
 
     def test_edit_and_delete_category(self):
-        self.assertEqual(self.client.post('/admin/categories/C001/rename', data={'name': 'Electronic Equipment'}).status_code, 303)
+        self.assertEqual(self.post('/admin/categories/C001/rename', data={'name': 'Electronic Equipment'}).status_code, 303)
         self.assertIn(b'Electronic Equipment', self.client.get('/inventory').data)
-        self.assertEqual(self.client.post('/admin/categories/C001/delete').status_code, 409)
+        self.assertEqual(self.post('/admin/categories/C001/delete').status_code, 409)
         new = self.store.add_category('Unused')
-        self.assertEqual(self.client.post(f'/admin/categories/{new["id"]}/delete').status_code, 303)
+        self.assertEqual(self.post(f'/admin/categories/{new["id"]}/delete').status_code, 303)
         self.assertIsNone(self.store.get_category(new['id']))
 
     def test_add_and_edit_product(self):
         form = {'name': 'Flash Drive', 'category_ids': ['C001', 'C002'], 'quantity': '20', 'min_stock': '5', 'price': '89.99'}
-        self.assertEqual(self.client.post('/admin/add', data=form).status_code, 303)
+        self.assertEqual(self.post('/admin/add', data=form).status_code, 303)
         self.assertIn(b'Flash Drive', self.client.get('/inventory').data)
-        self.assertEqual(self.client.post('/admin/edit/P007', data={**form, 'quantity': '999', 'category_ids': ['C002']}).status_code, 303)
+        self.assertEqual(self.post('/admin/edit/P007', data={**form, 'quantity': '999', 'category_ids': ['C002']}).status_code, 303)
         self.assertEqual(self.store.get_product('P007')['quantity'], 20)
         self.assertEqual(self.store.get_product('P007')['category_ids'], ['C002'])
 
     def test_invalid_product(self):
         form = {'name': 'Bad', 'quantity': '0', 'min_stock': '0', 'price': '1.00'}
-        self.assertEqual(self.client.post('/admin/add', data=form).status_code, 400)
-        self.assertEqual(self.client.post('/admin/add', data={**form, 'category_ids': ['C999']}).status_code, 400)
+        self.assertEqual(self.post('/admin/add', data=form).status_code, 400)
+        self.assertEqual(self.post('/admin/add', data={**form, 'category_ids': ['C999']}).status_code, 400)
         self.assertEqual(len(self.store.products), 6)
 
 

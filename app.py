@@ -1,8 +1,10 @@
 from flask import Flask, abort, redirect, render_template, request, url_for
 from services.catalogue import Catalogue, CatalogueError
+from stock_manager.auth import configure_auth, admin_required
 
 app = Flask(__name__)
 catalogue = Catalogue()
+configure_auth(app)
 
 
 @app.route("/")
@@ -28,6 +30,7 @@ def inventory():
 
 
 @app.route("/admin")
+@admin_required
 def admin():
     return render_template("admin.html", products=catalogue.product_rows())
 
@@ -46,6 +49,7 @@ def render_product_form(template, product=None, error=None, status=200):
 
 
 @app.route("/admin/add", methods=["GET", "POST"])
+@admin_required
 def add_product():
     if request.method == "POST":
         try:
@@ -59,6 +63,7 @@ def add_product():
 
 
 @app.route("/admin/edit/<product_id>", methods=["GET", "POST"])
+@admin_required
 def edit_product(product_id):
     product = catalogue.get_product(product_id)
     if product is None:
@@ -80,6 +85,7 @@ def render_categories(edit=None, name="", error=None, status=200):
 
 
 @app.route("/admin/categories", methods=["GET", "POST"])
+@admin_required
 def manage_categories():
     if request.method == "POST":
         name = request.form.get("name", "")
@@ -96,6 +102,7 @@ def manage_categories():
 
 
 @app.post("/admin/categories/<category_id>/rename")
+@admin_required
 def rename_category(category_id):
     category = catalogue.get_category(category_id)
     if category is None:
@@ -109,6 +116,7 @@ def rename_category(category_id):
 
 
 @app.post("/admin/categories/<category_id>/delete")
+@admin_required
 def delete_category(category_id):
     if catalogue.get_category(category_id) is None:
         abort(404)

@@ -1,6 +1,8 @@
 """In-memory catalogue for the local development phase."""
+
 from decimal import Decimal, InvalidOperation
 from itertools import count
+import re
 
 
 class CatalogueError(ValueError):
@@ -46,16 +48,36 @@ class Catalogue:
         return next((p for p in self.products if p["id"] == product_id), None)
 
     def sorted_categories(self):
+        # Alphabetical order for category selectors and filters.
         return sorted(self.categories, key=lambda c: c["name"].casefold())
 
     def category_rows(self):
-        return [dict(c, product_count=sum(c["id"] in p["category_ids"] for p in self.products))
-                for c in self.sorted_categories()]
+        # Registration/ID order for the administrative category table.
+        return [
+            dict(
+                category,
+                product_count=sum(
+                    category["id"] in product["category_ids"]
+                    for product in self.products
+                ),
+            )
+            for category in sorted(
+                self.categories, key=lambda c: int(c["id"][1:])
+            )
+        ]
 
     def product_rows(self, products=None):
-        names = {c["id"]: c["name"] for c in self.categories}
-        return [dict(p, category_names=[names[c] for c in p["category_ids"]], status=stock_status(p))
-                for p in (self.products if products is None else products)]
+        names = {category["id"]: category["name"] for category in self.categories}
+        source = self.products if products is None else products
+        # Product ID order both in Administration and Inventory.
+        return [
+            dict(
+                product,
+                category_names=[names[c] for c in product["category_ids"]],
+                status=stock_status(product),
+            )
+            for product in sorted(source, key=lambda p: int(p["id"][1:]))
+        ]
 
     def validate_category(self, name, exclude_id=None):
         name = normalize_name(name)
@@ -63,8 +85,11 @@ class Catalogue:
             raise CatalogueError("Category name must contain 1 to 50 characters.")
         if "," in name:
             raise CatalogueError("Create one category at a time (without commas).")
-        if any(c["id"] != exclude_id and c["name"].casefold() == name.casefold()
-               for c in self.categories):
+        if any(
+            category["id"] != exclude_id
+            and category["name"].casefold() == name.casefold()
+            for category in self.categories
+        ):
             raise CatalogueError("This category already exists.")
         return name
 
@@ -86,34 +111,52 @@ class Catalogue:
         if category is None:
             raise CatalogueError("Category not found.")
         if any(category_id in p["category_ids"] for p in self.products):
-            raise CatalogueError("This category is assigned to products. Reassign them before deleting it.")
+            raise CatalogueError(
+                "This category is assigned to products. Reassign them before deleting it."
+            )
         self.categories.remove(category)
 
     def validate_product(self, name, category_ids, min_stock, price, quantity=None):
         name = normalize_name(name)
         if not name or len(name) > 100:
             raise CatalogueError("Product name must contain 1 to 100 characters.")
+
         category_ids = list(dict.fromkeys(category_ids))
         if not category_ids:
             raise CatalogueError("Select at least one category.")
-        if any(self.get_category(c) is None for c in category_ids):
+        if any(self.get_category(category_id) is None for category_id in category_ids):
             raise CatalogueError("Select valid registered categories.")
+
         try:
             minimum = int(min_stock)
             initial = int(quantity) if quantity is not None else None
-            amount = Decimal(price)
+
+            # Reject scientific notation (1e3), signs, commas and >2 decimals.
+            price_text = str(price).strip()
+            if not re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", price_text):
+                raise ValueError
+            amount = Decimal(price_text)
+
             if not amount.is_finite() or amount < 0:
                 raise ValueError
-            if amount != amount.quantize(Decimal("0.01")):
+            if not 0 <= minimum <= 2147483647:
                 raise ValueError
-            # Explicit bounds keep these values within a practical storage range.
-            if not 0 <= minimum <= 2147483647 or (initial is not None and not 0 <= initial <= 2147483647):
+            if initial is not None and not 0 <= initial <= 2147483647:
                 raise ValueError
             if amount > Decimal("999999999.99"):
                 raise ValueError
         except (ValueError, InvalidOperation, TypeError, OverflowError):
-            raise CatalogueError("Enter valid non-negative whole quantities and a price with at most two decimal places.") from None
-        data = {"name": name, "category_ids": category_ids, "min_stock": minimum, "price": float(amount)}
+            raise CatalogueError(
+                "Enter valid non-negative whole quantities and a price with at most two decimal places."
+            ) from None
+
+        # Keep the old catalogue's price field compatible with current templates.
+        data = {
+            "name": name,
+            "category_ids": category_ids,
+            "min_stock": minimum,
+            "price": float(amount),
+        }
         if initial is not None:
             data["quantity"] = initial
         return data
@@ -147,6 +190,8 @@ class Catalogue:
         return output
 
     def statistics(self):
-        return {"total_products": len(self.products),
-                "low_stock": sum(stock_status(p) == "low" for p in self.products),
-                "out_of_stock": sum(stock_status(p) == "out" for p in self.products)}
+        return {
+            "total_products": len(self.products),
+            "low_stock": sum(stock_status(p) == "low" for p in self.products),
+            "out_of_stock": sum(stock_status(p) == "out" for p in self.products),
+        }

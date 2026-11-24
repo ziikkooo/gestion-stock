@@ -1,32 +1,91 @@
 {% from "_category_controls.html" import category_picker %}
+
 <h1>{{ 'Edit Product' if product else 'Add Product' }}</h1>
-<p class="subtitle">{{ 'Update product information and category assignments.' if product else 'Register a new product in the warehouse inventory.' }}</p>
+<p class="subtitle">
+    {{ 'Update product information and category assignments.' if product
+       else 'Register a new product in the warehouse inventory.' }}
+</p>
+
 <div class="form-container">
     <h2>Product Information</h2>
-    {% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
-    <form method="POST" class="product-form" action="{{ url_for('edit_product', product_id=product.id) if product else url_for('add_product') }}">
+
+    {% if error %}
+        <div class="error-message" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" class="product-form"
+          action="{{ url_for('edit_product', product_id=product.id) if product else url_for('add_product') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         {% if product %}
-        <div class="form-group"><label for="product-id">Product ID</label><input id="product-id" value="{{ product.id }}" readonly></div>
+        <div class="form-group">
+            <label for="product-id">Product ID</label>
+            <input id="product-id" value="{{ product.id }}" readonly>
+        </div>
         {% endif %}
-        <div class="form-group"><label for="name">Product Name</label><input id="name" name="name" value="{{ values.name }}" maxlength="100" required placeholder="e.g. USB Flash Drive"></div>
+
+        <div class="form-group">
+            <label for="name">Product Name</label>
+            <input id="name" name="name" value="{{ values.name }}"
+                   maxlength="100" required placeholder="e.g. USB Flash Drive">
+        </div>
+
         <div class="form-group">
             <span class="field-label">Categories (required)</span>
-            {{ category_picker(categories, values.category_ids, 'category_ids', 'Select one or more categories', 'product-category-options') }}
+            {{ category_picker(categories, values.category_ids, 'category_ids',
+                               'Select one or more categories', 'product-category-options') }}
             <p class="form-note">Select every category that applies to this product.</p>
-            <a class="category-management-link" href="{{ url_for('manage_categories') }}" target="_blank" rel="noopener">Manage available categories (opens a new tab)</a>
+            <a class="category-management-link" href="{{ url_for('manage_categories') }}"
+               target="_blank" rel="noopener">Manage available categories (opens a new tab)</a>
         </div>
+
         <div class="product-form-grid">
             {% if product %}
-            <div class="form-group"><label for="quantity">Current Quantity</label><input id="quantity" value="{{ product.quantity }}" readonly><p class="form-note">Stock changes will use stock movements.</p></div>
+            <div class="form-group">
+                <label for="quantity">Current Quantity</label>
+                <input id="quantity" value="{{ product.quantity }}" readonly>
+                <p class="form-note">Stock changes will use stock movements.</p>
+            </div>
             {% else %}
-            <div class="form-group"><label for="quantity">Initial Quantity</label><input id="quantity" name="quantity" type="number" min="0" max="2147483647" step="1" value="{{ values.quantity }}" required></div>
+            <div class="form-group">
+                <label for="quantity">Initial Quantity</label>
+                <input id="quantity" name="quantity" type="number" min="0"
+                       max="2147483647" step="1" value="{{ values.quantity }}" required>
+            </div>
             {% endif %}
-            <div class="form-group"><label for="min_stock">Minimum Stock</label><input id="min_stock" name="min_stock" type="number" min="0" max="2147483647" step="1" value="{{ values.min_stock }}" required></div>
+
+            <div class="form-group">
+                <label for="min_stock">Minimum Stock</label>
+                <input id="min_stock" name="min_stock" type="number" min="0"
+                       max="2147483647" step="1" value="{{ values.min_stock }}" required>
+            </div>
         </div>
-        <div class="form-group"><label for="price">Unit Price (MAD)</label><input id="price" name="price" type="number" min="0" max="999999999.99" step="0.01" value="{{ values.price }}" required></div>
-        {% if not product %}<p class="form-note">Product ID will be generated automatically.</p>{% endif %}
+
+        <div class="form-group">
+    <label for="price">Unit Price (MAD)</label>
+
+    <input
+        id="price"
+        name="price"
+        type="text"
+        inputmode="decimal"
+        pattern="[0-9]+(\.[0-9]{1,2})?"
+        maxlength="12"
+        placeholder="e.g. 129.99"
+        value="{{ values.price }}"
+        oninput="this.value = this.value.replace(/[^0-9.]/g, '')"
+        required
+    >
+</div>
+
+        {% if not product %}
+            <p class="form-note">Product ID will be generated automatically.</p>
+        {% endif %}
+
         <div class="form-actions">
-            <button type="submit" class="btn">{{ 'Save Changes' if product else 'Add Product' }}</button>
+            <button type="submit" class="btn">
+                {{ 'Save Changes' if product else 'Add Product' }}
+            </button>
             <a class="btn-secondary" href="{{ url_for('admin') }}">Cancel</a>
         </div>
     </form>
