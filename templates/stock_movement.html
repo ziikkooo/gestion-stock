@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_category_controls.html" import admin_tabs %}
+{% block title %}Stock Operation | Stock Manager{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<p class="subtitle">Record an auditable stock change. Product quantities cannot be edited directly.</p>
+{{ admin_tabs('movements') }}
+<div class="movement-layout">
+    <section class="table-container movement-panel">
+        <div class="section-header">
+            <h2>Move Stock — {{ product.id }}</h2>
+            <a class="btn-secondary action-btn" href="{{ url_for('admin') }}">Back to Products</a>
+        </div>
+        <div class="movement-product-summary">
+            <div><span class="movement-meta-label">Product</span><strong>{{ product.name }}</strong></div>
+            <div><span class="movement-meta-label">Current stock</span><strong id="current-stock" data-current-stock="{{ product.quantity }}">{{ product.quantity }}</strong></div>
+            <div><span class="movement-meta-label">Minimum stock</span><strong>{{ product.min_stock }}</strong></div>
+        </div>
+        {% if error %}<div class="error-message" role="alert">{{ error }}</div>{% endif %}
+        <form method="POST" action="{{ url_for('stock_operation', product_id=product.id) }}" class="product-form" data-stock-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="expected_quantity" value="{{ product.quantity }}">
+            <div class="form-group">
+                <label for="kind">Operation type</label>
+                <select id="kind" name="kind" required>
+                    <option value="entry" {% if fields.kind == 'entry' %}selected{% endif %}>Entry — receive stock</option>
+                    <option value="exit" {% if fields.kind == 'exit' %}selected{% endif %}>Exit — dispatch stock</option>
+                    <option value="adjustment" {% if fields.kind == 'adjustment' %}selected{% endif %}>Adjustment — enter counted total</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="amount" data-amount-label>Quantity to add</label>
+                <input id="amount" name="amount" type="text" inputmode="numeric" pattern="[0-9]+"
+                       maxlength="10" autocomplete="off" value="{{ fields.amount }}" required
+                       placeholder="e.g. 10" aria-describedby="amount-note">
+                <p class="form-note" id="amount-note" data-amount-note>Enter the number of units received (greater than zero).</p>
+            </div>
+            <div class="movement-balance" aria-live="polite">
+                <div><span>Before</span><strong>{{ product.quantity }}</strong></div>
+                <div><span>Change</span><strong data-preview-delta>—</strong></div>
+                <div><span>After</span><strong data-preview-result>—</strong></div>
+            </div>
+            <div class="form-group">
+                <label for="reason">Reason <span data-reason-required-note>(optional)</span></label>
+                <textarea id="reason" name="reason" rows="3" maxlength="500" placeholder="e.g. Supplier delivery, customer order, physical stock count">{{ fields.reason }}</textarea>
+                <p class="form-note">A reason is mandatory for adjustments. Up to 500 characters.</p>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Confirm Stock Movement</button>
+                <a href="{{ url_for('stock_history', product_id=product.id) }}" class="btn-secondary">View History</a>
+                <a href="{{ url_for('admin') }}" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </section>
+    <aside class="movement-help">
+        <h2>How stock movements work</h2>
+        <p><strong>Entry:</strong> adds received items.</p>
+        <p><strong>Exit:</strong> removes dispatched items. Stock cannot become negative.</p>
+        <p><strong>Adjustment:</strong> replaces the recorded balance with the actual counted quantity. Include a reason.</p>
+        <p>Every successful operation records the administrator, date and time (UTC), previous balance, signed change, resulting balance and reason.</p>
+        <p class="form-note">If the balance changed while you were counting, an adjustment is rejected; reload and review the stock.</p>
+    </aside>
+</div>
+{% endblock %}

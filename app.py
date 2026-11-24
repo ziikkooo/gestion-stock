@@ -128,3 +128,65 @@ def delete_category(category_id):
     except CatalogueError as error:
         return render_categories(error=str(error), status=409)
     return redirect(url_for("manage_categories"), code=303)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3.2: administrative stock operations and immutable audit views
+# ---------------------------------------------------------------------------
+
+def render_stock_form(product, error=None, status=200):
+    """Re-render failed POSTs without discarding user-supplied form data."""
+    if request.method == "POST":
+        fields = {
+            "kind": request.form.get("kind", "entry"),
+            "amount": request.form.get("amount", ""),
+            "reason": request.form.get("reason", ""),
+        }
+    else:
+        fields = {"kind": "entry", "amount": "", "reason": ""}
+    return render_template("stock_movement.html", product=product,
+                           fields=fields, error=error), status
+
+
+@app.route("/admin/stock/<product_id>", methods=["GET", "POST"])
+@admin_required
+def stock_operation(product_id):
+    product = catalogue.get_product(product_id)
+    if product is None:
+        abort(404)
+    if request.method == "POST":
+        try:
+            catalogue.record_stock_movement(
+                product_code=product_id,
+                kind=request.form.get("kind", ""),
+                amount=request.form.get("amount", ""),
+                reason=request.form.get("reason", ""),
+                expected_quantity=request.form.get("expected_quantity"),
+                actor=Actor(str(current_user.id), current_user.username),
+            )
+        except CatalogueError as error:
+            # The stock displayed on the page might have changed between the
+            # initial GET and the POST; always fetch the new current balance.
+            return render_stock_form(catalogue.get_product(product_id), str(error), 400)
+        return redirect(url_for("stock_history", product_id=product_id), code=303)
+    return render_stock_form(product)
+
+
+@app.get("/admin/stock/<product_id>/history")
+@admin_required
+def stock_history(product_id):
+    product = catalogue.get_product(product_id, include_archived=True)
+    if product is None:
+        abort(404)
+    return render_template("stock_history.html", product=product,
+                           movements=catalogue.movement_rows(product_id))
+
+
+@app.get("/admin/movements")
+@admin_required
+def all_movements():
+    product_code = request.args.get("product", "").strip()
+    if product_code and catalogue.get_product(product_code, include_archived=True) is None:
+        abort(404)
+    return render_template("movements.html", movements=catalogue.movement_rows(product_code or None),
+                           products=catalogue.audit_product_rows(), selected_product=product_code)

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_category_controls.html" import admin_tabs %}
+{% from "_movement_table.html" import movements_table %}
+{% block title %}Product History | Stock Manager{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<p class="subtitle">Read-only movement history for a single product.</p>
+{{ admin_tabs('movements') }}
+<div class="table-container">
+    <div class="section-header">
+        <h2>{{ product.id }} — {{ product.name }}{% if product.archived %} (Archived){% endif %}</h2>
+        <div class="table-actions">
+            {% if not product.archived %}<a class="btn" href="{{ url_for('stock_operation', product_id=product.id) }}">+ New Movement</a>{% endif %}
+            <a class="btn-secondary action-btn" href="{{ url_for('all_movements') }}">All Movements</a>
+        </div>
+    </div>
+    <div class="movement-summary-inline">Current stock: <strong>{{ product.quantity }}</strong> · Total records: <strong>{{ movements|length }}</strong></div>
+    {{ movements_table(movements) }}
+</div>
+{% endblock %}

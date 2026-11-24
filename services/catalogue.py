@@ -7,7 +7,7 @@ The local repository is process-memory only until Cosmos DB integration.
 from decimal import Decimal
 import re
 
-from stock_manager.models import Actor, StockStatus
+from stock_manager.models import Actor, StockStatus, MovementType
 from stock_manager.repository import InMemoryRepository
 from stock_manager.service import WarehouseService, ValidationError, NotFoundError
 
@@ -81,6 +81,7 @@ def _to_product(row, categories):
         "min_stock": row.min_stock,
         "price": Decimal(row.price_centimes) / Decimal(100),
         "status": row.status.value,
+        "archived": row.archived,
     }
 
 
@@ -131,10 +132,17 @@ class Catalogue:
         category = next((c for c in self.repository.read().categories.values() if c.code == category_id), None)
         return _to_category(category) if category else None
 
-    def get_product(self, product_id):
+    def get_product(self, product_id, *, include_archived=False):
         state = self.repository.read()
-        product = next((p for p in state.products.values() if p.code == product_id and not p.archived), None)
+        product = next((p for p in state.products.values()
+                        if p.code == product_id and (include_archived or not p.archived)), None)
         return _to_product(product, state.categories) if product else None
+
+    def audit_product_rows(self):
+        """All products, including archived ones, remain available as audit filters."""
+        state = self.repository.read()
+        return [_to_product(p, state.categories) for p in sorted(
+            state.products.values(), key=lambda p: int(p.code[1:]))]
 
     def sorted_categories(self):
         return sorted(self.categories, key=lambda c: c["name"].casefold())
@@ -262,3 +270,63 @@ class Catalogue:
         if uid is None:
             raise CatalogueError("Product not found.")
         return self.service.history(uid)
+
+
+    def record_stock_movement(self, *, product_code, kind, amount, reason,
+                              expected_quantity, actor):
+        """Validated public product-code adapter; server supplies trusted actor.
+
+        No stock change is permitted through the product edit form. Only this
+        entry point invokes the service's atomic movement transaction.
+        """
+        uid = self._product_uuid(product_code)
+        if uid is None or self.get_product(product_code) is None:
+            raise CatalogueError("Product not found.")
+        try:
+            movement_kind = MovementType(kind)
+        except (ValueError, TypeError) as exc:
+            raise CatalogueError("Select Entry, Exit or Adjustment.") from exc
+        if movement_kind == MovementType.INITIAL:
+            raise CatalogueError("Initial stock is recorded only when a product is created.")
+        # Bound input length before converting maliciously huge decimal strings.
+        if not isinstance(amount, str) or len(amount.strip()) > 10:
+            raise CatalogueError("Quantity is outside the supported range.")
+        count = _parse_whole(amount)
+        expected = None
+        if movement_kind == MovementType.ADJUSTMENT:
+            if not isinstance(expected_quantity, str) or len(expected_quantity.strip()) > 10:
+                raise CatalogueError("Expected stock is outside the supported range.")
+            expected = _parse_whole(expected_quantity)
+        if not isinstance(reason, str):
+            raise CatalogueError("Reason must be text.")
+        try:
+            return self.service.record_movement(
+                uid, kind=movement_kind, amount=count, actor=actor,
+                reason=reason, expected_quantity=expected,
+            )
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
+
+    def movement_rows(self, product_code=None):
+        """Read-only audit projection; most recent first, UTC timestamps."""
+        state = self.repository.read()
+        if product_code is not None:
+            uid = self._product_uuid(product_code)
+            if uid is None:
+                raise CatalogueError("Product not found.")
+        else:
+            uid = None
+        rows = (m for m in state.movements.values() if uid is None or m.product_id == uid)
+        ordered = sorted(rows, key=lambda m: (m.created_at, m.id), reverse=True)
+        return [{
+            "id": m.id,
+            "product_code": m.product_code,
+            "product_name": m.product_name,
+            "kind": m.movement_type.value,
+            "previous_quantity": m.previous_quantity,
+            "delta": m.quantity_delta,
+            "resulting_quantity": m.resulting_quantity,
+            "actor": m.actor_username,
+            "reason": m.reason,
+            "timestamp": m.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        } for m in ordered]

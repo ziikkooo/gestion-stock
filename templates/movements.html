@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_category_controls.html" import admin_tabs %}
+{% from "_movement_table.html" import movements_table %}
+{% block title %}Stock Movements | Stock Manager{% endblock %}
+{% block content %}
+<h1>Administration</h1>
+<p class="subtitle">Immutable stock audit records, newest first. Times are in UTC.</p>
+{{ admin_tabs('movements') }}
+<div class="table-container">
+    <div class="section-header"><h2>Stock Movement History</h2><span class="movement-record-count">{{ movements|length }} records</span></div>
+    <form class="filter-form movement-filter" method="GET" action="{{ url_for('all_movements') }}">
+        <div class="filter-group"><label for="movement-product">Product</label>
+            <select id="movement-product" name="product">
+                <option value="">All products</option>
+                {% for p in products %}<option value="{{ p.id }}" {% if selected_product == p.id %}selected{% endif %}>{{ p.id }} — {{ p.name }}{% if p.archived %} (Archived){% endif %}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn">Filter</button>
+        <a class="btn-secondary" href="{{ url_for('all_movements') }}">Reset</a>
+    </form>
+    {{ movements_table(movements) }}
+</div>
+{% endblock %}
