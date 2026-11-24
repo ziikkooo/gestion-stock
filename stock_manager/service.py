@@ -2,6 +2,7 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+import re
 from uuid import uuid4
 from .models import Actor, Category, Movement, MovementType, Product, StockStatus, WarehouseState
 from .repository import WarehouseRepository
@@ -37,6 +38,8 @@ def price_to_centimes(value: str | Decimal) -> int:
     """Convert exact decimal input, rejecting fractions of a centime and floats."""
     if not isinstance(value, (str, Decimal)):
         raise ValidationError("Price must be decimal text or Decimal.")
+    if isinstance(value, str) and not re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", value.strip()):
+        raise ValidationError("Price must use ordinary decimal notation with up to two decimal places.")
     try:
         amount = Decimal(value)
         if not amount.is_finite() or amount < 0 or amount > Decimal("90071992547409.91"):

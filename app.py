@@ -1,4 +1,6 @@
 from flask import Flask, abort, redirect, render_template, request, url_for
+from flask_login import current_user
+from stock_manager.models import Actor
 from services.catalogue import Catalogue, CatalogueError
 from stock_manager.auth import configure_auth, admin_required
 
@@ -55,7 +57,8 @@ def add_product():
         try:
             catalogue.add_product(request.form.get("name", ""), request.form.getlist("category_ids"),
                                   request.form.get("quantity", ""), request.form.get("min_stock", ""),
-                                  request.form.get("price", ""))
+                                  request.form.get("price", ""),
+                                  actor=Actor(str(current_user.id), current_user.username))
         except CatalogueError as error:
             return render_product_form("add_product.html", error=str(error), status=400)
         return redirect(url_for("admin"), code=303)

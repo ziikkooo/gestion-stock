@@ -1,16 +1,39 @@
-"""In-memory catalogue for the local development phase."""
+"""Flask catalogue compatibility adapter backed by WarehouseService.
 
-from decimal import Decimal, InvalidOperation
-from itertools import count
+Public P###/C### codes remain stable for URLs/forms. UUIDs are internal.
+No product or category data lives in a separate mutable list anymore.
+The local repository is process-memory only until Cosmos DB integration.
+"""
+from decimal import Decimal
 import re
+
+from stock_manager.models import Actor, StockStatus
+from stock_manager.repository import InMemoryRepository
+from stock_manager.service import WarehouseService, ValidationError, NotFoundError
 
 
 class CatalogueError(ValueError):
-    pass
+    """Validation error suitable for the existing HTTP error forms."""
+
+
+SEED_ACTOR = Actor(id="system-seed", username="system-seed")
+LOCAL_ACTOR = Actor(id="local-unit-test", username="local-unit-test")
+
+_INITIAL_CATEGORIES = (
+    "Electronics", "Accessories", "Stationery", "Office Supplies", "Computer Equipment",
+)
+_INITIAL_PRODUCTS = (
+    ("Wireless Mouse", ("C001", "C002", "C005"), 45, 10, "129.99"),
+    ("USB Cable", ("C001", "C002"), 8, 10, "39.99"),
+    ("Notebook", ("C003", "C004"), 120, 20, "24.99"),
+    ("Keyboard", ("C001", "C005"), 0, 5, "199.99"),
+    ("Headphones", ("C001", "C002"), 4, 10, "249.99"),
+    ("Desk Lamp", ("C001", "C004"), 26, 5, "149.99"),
+)
 
 
 def normalize_name(value):
-    return " ".join(value.split())
+    return " ".join(value.split()) if isinstance(value, str) else ""
 
 
 def stock_status(product):
@@ -21,63 +44,113 @@ def stock_status(product):
     return "available"
 
 
+def _parse_whole(value):
+    """Use browser-compatible decimal integers; never silently truncate '1.5'."""
+    text = str(value).strip()
+    if not re.fullmatch(r"[0-9]+", text):
+        raise CatalogueError("Enter valid non-negative whole quantities and a price with at most two decimal places.")
+    number = int(text)
+    if number > 2147483647:
+        raise CatalogueError("Enter valid non-negative whole quantities and a price with at most two decimal places.")
+    return number
+
+
+def _parse_price(value):
+    text = str(value).strip()
+    if not re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", text):
+        raise CatalogueError("Enter valid non-negative whole quantities and a price with at most two decimal places.")
+    if Decimal(text) > Decimal("999999999.99"):
+        raise CatalogueError("Enter valid non-negative whole quantities and a price with at most two decimal places.")
+    return text
+
+
+def _to_category(row):
+    return {"id": row.code, "name": row.name}
+
+
+def _to_product(row, categories):
+    """Adapt a domain Product to the old Jinja-compatible view shape.
+
+    Decimal is used only for presentation; repository stores integer centimes.
+    """
+    return {
+        "id": row.code,
+        "name": row.name,
+        "category_ids": [categories[key].code for key in row.category_ids],
+        "quantity": row.quantity,
+        "min_stock": row.min_stock,
+        "price": Decimal(row.price_centimes) / Decimal(100),
+        "status": row.status.value,
+    }
+
+
 class Catalogue:
     def __init__(self):
-        self.categories = [
-            {"id": "C001", "name": "Electronics"},
-            {"id": "C002", "name": "Accessories"},
-            {"id": "C003", "name": "Stationery"},
-            {"id": "C004", "name": "Office Supplies"},
-            {"id": "C005", "name": "Computer Equipment"},
-        ]
-        self.products = [
-            {"id": "P001", "name": "Wireless Mouse", "category_ids": ["C001", "C002", "C005"], "quantity": 45, "min_stock": 10, "price": 129.99},
-            {"id": "P002", "name": "USB Cable", "category_ids": ["C001", "C002"], "quantity": 8, "min_stock": 10, "price": 39.99},
-            {"id": "P003", "name": "Notebook", "category_ids": ["C003", "C004"], "quantity": 120, "min_stock": 20, "price": 24.99},
-            {"id": "P004", "name": "Keyboard", "category_ids": ["C001", "C005"], "quantity": 0, "min_stock": 5, "price": 199.99},
-            {"id": "P005", "name": "Headphones", "category_ids": ["C001", "C002"], "quantity": 4, "min_stock": 10, "price": 249.99},
-            {"id": "P006", "name": "Desk Lamp", "category_ids": ["C001", "C004"], "quantity": 26, "min_stock": 5, "price": 149.99},
-        ]
-        self.category_counter = count(6)
-        self.product_counter = count(7)
+        self.repository = InMemoryRepository()
+        self.service = WarehouseService(self.repository)
+        for name in _INITIAL_CATEGORIES:
+            self.service.create_category(name)
+        for name, codes, qty, minimum, price in _INITIAL_PRODUCTS:
+            self.service.create_product(
+                name=name,
+                category_ids=self._category_ids(codes),
+                quantity=qty,
+                min_stock=minimum,
+                price=price,
+                actor=SEED_ACTOR,
+            )
+
+    def _category_ids(self, codes):
+        state = self.repository.read()
+        by_code = {c.code: c.id for c in state.categories.values()}
+        try:
+            return [by_code[code] for code in codes]
+        except KeyError as exc:
+            raise CatalogueError("Select valid registered categories.") from exc
+
+    def _category_uuid(self, code):
+        return next((c.id for c in self.repository.read().categories.values() if c.code == code), None)
+
+    def _product_uuid(self, code):
+        return next((p.id for p in self.repository.read().products.values() if p.code == code), None)
+
+    @property
+    def categories(self):
+        return [_to_category(c) for c in sorted(
+            self.repository.read().categories.values(), key=lambda c: int(c.code[1:])
+        )]
+
+    @property
+    def products(self):
+        state = self.repository.read()
+        return [_to_product(p, state.categories) for p in sorted(
+            state.products.values(), key=lambda p: int(p.code[1:])
+        ) if not p.archived]
 
     def get_category(self, category_id):
-        return next((c for c in self.categories if c["id"] == category_id), None)
+        category = next((c for c in self.repository.read().categories.values() if c.code == category_id), None)
+        return _to_category(category) if category else None
 
     def get_product(self, product_id):
-        return next((p for p in self.products if p["id"] == product_id), None)
+        state = self.repository.read()
+        product = next((p for p in state.products.values() if p.code == product_id and not p.archived), None)
+        return _to_product(product, state.categories) if product else None
 
     def sorted_categories(self):
-        # Alphabetical order for category selectors and filters.
         return sorted(self.categories, key=lambda c: c["name"].casefold())
 
     def category_rows(self):
-        # Registration/ID order for the administrative category table.
+        state = self.repository.read()
         return [
-            dict(
-                category,
-                product_count=sum(
-                    category["id"] in product["category_ids"]
-                    for product in self.products
-                ),
-            )
-            for category in sorted(
-                self.categories, key=lambda c: int(c["id"][1:])
-            )
+            dict(_to_category(c), product_count=sum(c.id in p.category_ids for p in state.products.values()))
+            for c in sorted(state.categories.values(), key=lambda c: int(c.code[1:]))
         ]
 
     def product_rows(self, products=None):
-        names = {category["id"]: category["name"] for category in self.categories}
+        categories = {c["id"]: c["name"] for c in self.categories}
         source = self.products if products is None else products
-        # Product ID order both in Administration and Inventory.
-        return [
-            dict(
-                product,
-                category_names=[names[c] for c in product["category_ids"]],
-                status=stock_status(product),
-            )
-            for product in sorted(source, key=lambda p: int(p["id"][1:]))
-        ]
+        return [dict(p, category_names=[categories[c] for c in p["category_ids"]])
+                for p in sorted(source, key=lambda p: int(p["id"][1:]))]
 
     def validate_category(self, name, exclude_id=None):
         name = normalize_name(name)
@@ -85,113 +158,107 @@ class Catalogue:
             raise CatalogueError("Category name must contain 1 to 50 characters.")
         if "," in name:
             raise CatalogueError("Create one category at a time (without commas).")
-        if any(
-            category["id"] != exclude_id
-            and category["name"].casefold() == name.casefold()
-            for category in self.categories
-        ):
+        if any(c["id"] != exclude_id and c["name"].casefold() == name.casefold()
+               for c in self.categories):
             raise CatalogueError("This category already exists.")
         return name
 
     def add_category(self, name):
         name = self.validate_category(name)
-        category = {"id": f"C{next(self.category_counter):03d}", "name": name}
-        self.categories.append(category)
-        return category
+        try:
+            return _to_category(self.service.create_category(name))
+        except ValidationError as exc:
+            raise CatalogueError(str(exc)) from exc
 
     def rename_category(self, category_id, name):
-        category = self.get_category(category_id)
-        if category is None:
+        uid = self._category_uuid(category_id)
+        if uid is None:
             raise CatalogueError("Category not found.")
-        category["name"] = self.validate_category(name, exclude_id=category_id)
-        return category
+        name = self.validate_category(name, exclude_id=category_id)
+        try:
+            return _to_category(self.service.rename_category(uid, name))
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
 
     def delete_category(self, category_id):
-        category = self.get_category(category_id)
-        if category is None:
+        uid = self._category_uuid(category_id)
+        if uid is None:
             raise CatalogueError("Category not found.")
-        if any(category_id in p["category_ids"] for p in self.products):
-            raise CatalogueError(
-                "This category is assigned to products. Reassign them before deleting it."
-            )
-        self.categories.remove(category)
+        try:
+            self.service.delete_category(uid)
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
 
     def validate_product(self, name, category_ids, min_stock, price, quantity=None):
         name = normalize_name(name)
         if not name or len(name) > 100:
             raise CatalogueError("Product name must contain 1 to 100 characters.")
-
         category_ids = list(dict.fromkeys(category_ids))
         if not category_ids:
             raise CatalogueError("Select at least one category.")
-        if any(self.get_category(category_id) is None for category_id in category_ids):
-            raise CatalogueError("Select valid registered categories.")
-
-        try:
-            minimum = int(min_stock)
-            initial = int(quantity) if quantity is not None else None
-
-            # Reject scientific notation (1e3), signs, commas and >2 decimals.
-            price_text = str(price).strip()
-            if not re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", price_text):
-                raise ValueError
-            amount = Decimal(price_text)
-
-            if not amount.is_finite() or amount < 0:
-                raise ValueError
-            if not 0 <= minimum <= 2147483647:
-                raise ValueError
-            if initial is not None and not 0 <= initial <= 2147483647:
-                raise ValueError
-            if amount > Decimal("999999999.99"):
-                raise ValueError
-        except (ValueError, InvalidOperation, TypeError, OverflowError):
-            raise CatalogueError(
-                "Enter valid non-negative whole quantities and a price with at most two decimal places."
-            ) from None
-
-        # Keep the old catalogue's price field compatible with current templates.
+        self._category_ids(category_ids)
         data = {
             "name": name,
             "category_ids": category_ids,
-            "min_stock": minimum,
-            "price": float(amount),
+            "min_stock": _parse_whole(min_stock),
+            "price": _parse_price(price),
         }
-        if initial is not None:
-            data["quantity"] = initial
+        if quantity is not None:
+            data["quantity"] = _parse_whole(quantity)
         return data
 
-    def add_product(self, name, category_ids, quantity, min_stock, price):
+    def add_product(self, name, category_ids, quantity, min_stock, price, *, actor=None):
         data = self.validate_product(name, category_ids, min_stock, price, quantity=quantity)
-        product = dict(data, id=f"P{next(self.product_counter):03d}")
-        self.products.append(product)
-        return product
+        try:
+            result = self.service.create_product(
+                name=data["name"], category_ids=self._category_ids(data["category_ids"]),
+                quantity=data["quantity"], min_stock=data["min_stock"], price=data["price"],
+                actor=actor if actor is not None else LOCAL_ACTOR,
+            )
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
+        return _to_product(result, self.repository.read().categories)
 
     def edit_product(self, product_id, name, category_ids, min_stock, price):
-        product = self.get_product(product_id)
-        if product is None:
+        uid = self._product_uuid(product_id)
+        if uid is None:
             raise CatalogueError("Product not found.")
-        product.update(self.validate_product(name, category_ids, min_stock, price))
-        return product
+        data = self.validate_product(name, category_ids, min_stock, price)
+        try:
+            result = self.service.edit_product(
+                uid, name=data["name"], category_ids=self._category_ids(data["category_ids"]),
+                min_stock=data["min_stock"], price=data["price"],
+            )
+        except (ValidationError, NotFoundError) as exc:
+            raise CatalogueError(str(exc)) from exc
+        return _to_product(result, self.repository.read().categories)
 
     def filter_products(self, search="", category_ids=(), mode="any", status=""):
-        search = search.strip().casefold()
-        selected = set(category_ids)
-        output = []
-        for product in self.products:
-            if search and search not in product["name"].casefold() and search not in product["id"].casefold():
-                continue
-            assigned = set(product["category_ids"])
-            if selected and not (selected <= assigned if mode == "all" else selected & assigned):
-                continue
-            if status and stock_status(product) != status:
-                continue
-            output.append(product)
-        return output
+        state = self.repository.read()
+        by_code = {c.code: c.id for c in state.categories.values()}
+        if any(code not in by_code for code in category_ids):
+            return []
+        resolved = tuple(by_code[code] for code in dict.fromkeys(category_ids))
+        try:
+            matches = self.service.filter_products(
+                search=search, category_ids=resolved, mode=mode,
+                status=StockStatus(status) if status else None,
+            )
+        except (ValidationError, ValueError) as exc:
+            raise CatalogueError(str(exc)) from exc
+        return [_to_product(p, state.categories) for p in matches]
 
     def statistics(self):
+        active = [p for p in self.repository.read().products.values() if not p.archived]
         return {
-            "total_products": len(self.products),
-            "low_stock": sum(stock_status(p) == "low" for p in self.products),
-            "out_of_stock": sum(stock_status(p) == "out" for p in self.products),
+            "total_products": len(active),
+            "low_stock": sum(p.status == StockStatus.LOW for p in active),
+            "out_of_stock": sum(p.status == StockStatus.OUT for p in active),
         }
+
+    def history(self, product_code):
+        """Read immutable movement records; used for integration tests and later UI."""
+        uid = self._product_uuid(product_code)
+        if uid is None:
+            raise CatalogueError("Product not found.")
+        return self.service.history(uid)
